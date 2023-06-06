@@ -77,6 +77,8 @@ class Recommendation():
     self.tree.build(100)
   
   def __call__(self, paths: list[str], num_recommendations=12):
+    if paths is None or len(paths) == 0:
+      return None
     user_feature = self.extract_feature(paths)
     return self.get_similar_images_centroid(user_feature, num_recommendations)
   
