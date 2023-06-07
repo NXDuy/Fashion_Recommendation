@@ -4,12 +4,11 @@ import torchvision.transforms as transforms
 import requests
 import torch
 from yolov5.utils.torch_utils import select_device
-import psycopg2
-import numpy as np
 from annoy import AnnoyIndex
-import random
 from yolov5.models.common import DetectMultiBackend
 from tqdm import tqdm
+
+from utils import batch_in_thread_pool
 
 class Recommendation():
   def __init__(self, model_path: str="yolov5s-cls.pt", device=0):
@@ -24,24 +23,27 @@ class Recommendation():
     conn = psycopg2.connect(database=database, user=user, password=password, host=host, port=port)
     cursor = conn.cursor()
     cursor.execute("""
-      select id, image_urls from product
+      SELECT id, image_urls FROM product WHERE is_public
     """
     )
     self.products = cursor.fetchall()
     conn.close()
 
   def extract_feature(self, paths: list[str], size=224):
-    features, ims = [], []
-    to_tensor = transforms.ToTensor()
-    for path in paths:
+    def _transform_image_by_path(path: str):
       if os.path.exists(path):
         im = Image.open(path)
       else:
-        im = Image.open(requests.get(path, stream=True).raw)
+        from io import BytesIO
+        im = Image.open(BytesIO(requests.get(path).content))
       if im.mode != "RGB":
-        continue
+        return
       im = im.resize((size, size))
-      ims.append(to_tensor(im).unsqueeze(dim=0).to(self.device))
+      return to_tensor(im).unsqueeze(dim=0).to(self.device)
+
+    features, ims = [], []
+    to_tensor = transforms.ToTensor()
+    ims = batch_in_thread_pool(func=_transform_image_by_path, items=paths)
 
     ims = torch.cat(ims) if len(ims) > 0 else ims[0].unsqueeze(dim=0)
     features = self.model(ims)
@@ -81,9 +83,6 @@ class Recommendation():
       return None
     user_feature = self.extract_feature(paths)
     return self.get_similar_images_centroid(user_feature, num_recommendations)
+
   
-if __name__ == "__main__":
-  rec = Recommendation()
-  rec.build()
-  _, paths = rec.products[0]
-  print(rec(paths))
+recommendation = Recommendation(device="cpu")
