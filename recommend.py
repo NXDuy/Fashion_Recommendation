@@ -1,4 +1,7 @@
 import os
+from io import BytesIO
+import requests
+from requests.adapters import HTTPAdapter
 from PIL import Image
 import torchvision.transforms as transforms
 import requests
@@ -12,6 +15,11 @@ from utils import batch_in_thread_pool
 
 class Recommendation():
   def __init__(self, model_path: str="yolov5s-cls.pt", device=0):
+    self.requests_session = requests.Session()
+    adapter = HTTPAdapter(pool_connections=150, pool_maxsize=150)
+    self.requests_session.mount('http://', adapter)
+    self.requests_session.mount('https://', adapter)
+
     if isinstance(device, int):
       self.device = f"cuda:{device}"
     else:
@@ -34,8 +42,7 @@ class Recommendation():
       if os.path.exists(path):
         im = Image.open(path)
       else:
-        from io import BytesIO
-        im = Image.open(BytesIO(requests.get(path).content))
+        im = Image.open(BytesIO(self.requests_session.get(path).content))
       if im.mode != "RGB":
         return
       im = im.resize((size, size))
