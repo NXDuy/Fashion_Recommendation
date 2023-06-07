@@ -10,6 +10,7 @@ from yolov5.utils.torch_utils import select_device
 from annoy import AnnoyIndex
 from yolov5.models.common import DetectMultiBackend
 from tqdm import tqdm
+from PIL import UnidentifiedImageError
 
 from utils import batch_in_thread_pool
 
@@ -42,7 +43,10 @@ class Recommendation():
       if os.path.exists(path):
         im = Image.open(path)
       else:
-        im = Image.open(BytesIO(self.requests_session.get(path).content))
+        try:
+          im = Image.open(BytesIO(self.requests_session.get(path).content))
+        except UnidentifiedImageError:
+          return
       if im.mode != "RGB":
         return
       im = im.resize((size, size))
