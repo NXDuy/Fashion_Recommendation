@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Body
-from pydantic import AnyUrl
+from fastapi import FastAPI
+from pydantic import AnyUrl, BaseModel, Field
 from recommend import recommendation
 
-app = FastAPI()
+app = FastAPI(title="Fashion Recommendation")
 
 
 @app.on_event("startup")
@@ -11,6 +11,14 @@ def startup_event():
     recommendation.build()
 
 
+class Payload(BaseModel):
+    image_urls: set[AnyUrl] = Field(min_items=1)
+    num_of_recommended_products: int = 20
+
+
 @app.post("/recommendation")
-async def get_fashion_recommendation(image_urls: list[AnyUrl] = Body(...)) -> list[int]:
-    return recommendation(paths=image_urls)
+def get_fashion_recommendation(payload: Payload) -> list[int]:
+    return recommendation(
+        paths=payload.image_urls,
+        num_recommendations=payload.num_of_recommended_products,
+    )

@@ -8,6 +8,8 @@ from annoy import AnnoyIndex
 from yolov5.models.common import DetectMultiBackend
 from tqdm import tqdm
 
+from utils import batch_in_thread_pool
+
 class Recommendation():
   def __init__(self, model_path: str="yolov5s-cls.pt", device=0):
     if isinstance(device, int):
@@ -28,18 +30,20 @@ class Recommendation():
     conn.close()
 
   def extract_feature(self, paths: list[str], size=224):
-    features, ims = [], []
-    to_tensor = transforms.ToTensor()
-    for path in paths:
+    def _transform_image_by_path(path: str):
       if os.path.exists(path):
         im = Image.open(path)
       else:
         from io import BytesIO
-        im = Image.open(BytesIO(requests.get(path, stream=True).content))
+        im = Image.open(BytesIO(requests.get(path).content))
       if im.mode != "RGB":
-        continue
+        return
       im = im.resize((size, size))
-      ims.append(to_tensor(im).unsqueeze(dim=0).to(self.device))
+      return to_tensor(im).unsqueeze(dim=0).to(self.device)
+
+    features, ims = [], []
+    to_tensor = transforms.ToTensor()
+    ims = batch_in_thread_pool(func=_transform_image_by_path, items=paths)
 
     ims = torch.cat(ims) if len(ims) > 0 else ims[0].unsqueeze(dim=0)
     features = self.model(ims)
@@ -82,4 +86,3 @@ class Recommendation():
 
   
 recommendation = Recommendation(device="cpu")
-  
