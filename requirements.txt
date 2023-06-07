@@ -75,3 +75,5 @@ urllib3==1.26.13
 Werkzeug==2.3.4
 wget==3.2
 yolov5==7.0.12
+fastapi==0.95.0
+uvicorn[standard]==0.20.0

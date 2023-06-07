@@ -4,10 +4,7 @@ import torchvision.transforms as transforms
 import requests
 import torch
 from yolov5.utils.torch_utils import select_device
-import psycopg2
-import numpy as np
 from annoy import AnnoyIndex
-import random
 from yolov5.models.common import DetectMultiBackend
 from tqdm import tqdm
 
@@ -24,7 +21,7 @@ class Recommendation():
     conn = psycopg2.connect(database=database, user=user, password=password, host=host, port=port)
     cursor = conn.cursor()
     cursor.execute("""
-      select id, image_urls from product
+      SELECT id, image_urls FROM product WHERE is_public
     """
     )
     self.products = cursor.fetchall()
@@ -37,7 +34,8 @@ class Recommendation():
       if os.path.exists(path):
         im = Image.open(path)
       else:
-        im = Image.open(requests.get(path, stream=True).raw)
+        from io import BytesIO
+        im = Image.open(BytesIO(requests.get(path, stream=True).content))
       if im.mode != "RGB":
         continue
       im = im.resize((size, size))
@@ -81,9 +79,7 @@ class Recommendation():
       return None
     user_feature = self.extract_feature(paths)
     return self.get_similar_images_centroid(user_feature, num_recommendations)
+
   
-if __name__ == "__main__":
-  rec = Recommendation()
-  rec.build()
-  _, paths = rec.products[0]
-  print(rec(paths))
+recommendation = Recommendation(device="cpu")
+  
