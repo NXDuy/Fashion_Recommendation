@@ -69,13 +69,13 @@ class Recommendation():
   def get_similar_images(self, img_index, number_of_items=12):
     similar_img_ids = self.tree.get_nns_by_item(img_index, number_of_items+1)
     # ignore first item as it is always target image
-    product_ids = [self.products[id][0] for id in similar_img_ids[1:]]
+    product_ids = [self.products[id][0] for id in similar_img_ids]
     return product_ids
 
   def get_similar_images_centroid(self, vector_value, number_of_items=12):
       similar_img_ids = self.tree.get_nns_by_vector(vector_value, number_of_items+1)
       # ignore first item as it is always target image
-      product_ids = [self.products[id][0] for id in similar_img_ids[1:]]
+      product_ids = [self.products[id][0] for id in similar_img_ids]
       return product_ids
 
   def get_index(self, product_id: str):
